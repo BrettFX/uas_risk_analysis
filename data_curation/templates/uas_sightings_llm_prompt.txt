@@ -1,0 +1,6 @@
+To the best of your abilities, please extract the timestamp, latitude, longitude, and altitude from the following UAS sightings report. If 
+either of these values are not reported explicitly, attempt to infer them based on relative locations stated in the report. For example, when latitude, longitude, and altitude are not reported and the report states a nearby airport to the UAS sighting, specify the coordinates relative to that airport. Do not provide an explanation. Provide the timestamp in zulu format, the latitude and longitude in decimal 
+degrees, and the altitude in AGL (feet). The output should be in JSON.
+
+"REPORT DATE: {report_date}; REPORT LOCATION: {city}, {state}; {report_narrative}"
+
