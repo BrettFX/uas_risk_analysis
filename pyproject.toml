@@ -1,0 +1,30 @@
+# See https://packaging.python.org/en/latest/tutorials/packaging-projects/
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "uas_risk_analysis_packages"
+version = "0.0.1"
+authors = [
+  { name="Brett Allen", email="brettallen777@gmail.com" },
+]
+description = "Python packages for UAS Risk Analysis project."
+readme = "README.md"
+requires-python = ">=3.12.5"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+dynamic = ["dependencies"]
+
+[tool.setuptools.dynamic]
+dependencies = {file = ["requirements.txt"]}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[project.urls]
+Homepage = "https://github.com/BrettFX/uas_risk_analysis"
+Issues = "https://github.com/BrettFX/uas_risk_analysis/issues"
