@@ -13,9 +13,16 @@ from typing import List, Callable, Union
 import nltk
 from nltk.corpus import stopwords 
 from nltk.tokenize import word_tokenize
+import datetime
 
 nltk.download('stopwords')
 nltk.download('punkt')
+
+def dateitme_to_epoch(dt: datetime.datetime) -> int:
+    return int(dt.timestamp())
+
+def epoch_to_datetime(epoch_time: int) -> datetime.datetime:
+    return datetime.datetime.fromtimestamp(epoch_time)
 
 def is_s3_path(path: str) -> bool:
     """
