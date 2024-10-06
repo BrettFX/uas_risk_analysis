@@ -150,9 +150,9 @@ def main():
     # Initialize trino database session
     trino = Trino()
 
-    # Get airports and create unique lookup
+    # Get airports and create unique lookup for only the US airports
     airports_df = pd.read_csv('../datasets/airports/airports.csv')
-    airports = set(airports_df['icao'].unique().tolist())
+    airports = set(airports_df[airports_df['country'] == 'US']['icao'].unique().tolist())
     print(f'Unique airports: {len(airports)}')
     
     # Get flight track points data if enbaled in configuration
