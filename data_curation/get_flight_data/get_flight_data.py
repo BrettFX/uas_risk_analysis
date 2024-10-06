@@ -78,54 +78,55 @@ def get_track_points(trino: Trino, airports: set, **kwargs):
                 start=start,
                 stop=stop
             )
-            
-            # Filter flight profiles where departure and arrival are known and belong in the airports list
-            filtered_profiles = flight_profiles[(flight_profiles['departure'].isin(airports)) & (flight_profiles['arrival'].isin(airports))]
 
-            # Filter by random sample based on flights per request. If total number of track points is less than flights per request, do not randomly sample
-            if len(filtered_profiles) >= flights_per_request:
-                filtered_profiles = filtered_profiles.sample(flights_per_request)
+            if flight_profiles is not None:
+                # Filter flight profiles where departure and arrival are known and belong in the airports list
+                filtered_profiles = flight_profiles[(flight_profiles['departure'].isin(airports)) & (flight_profiles['arrival'].isin(airports))]
 
-            # Make request for flight track points for each unique flight id in the filtered flight profiles results and obtain results
-            # NOTE: By default, date_delta splits requests by hour
-            track_points = trino.history(
-                start=start,
-                stop=stop,
-                icao24=list(set(filtered_profiles['icao24'].unique().tolist()))
-            )
+                # Filter by random sample based on flights per request. If total number of track points is less than flights per request, do not randomly sample
+                if len(filtered_profiles) >= flights_per_request:
+                    filtered_profiles = filtered_profiles.sample(flights_per_request)
 
-            # Create partition columns for year, month, day, hour
-            track_points['year'] = track_points['time'].dt.year
-            track_points['month'] = track_points['time'].dt.month
-            track_points['day'] = track_points['time'].dt.day
-            track_points['hour'] = track_points['time'].dt.hour
-
-            # Save to s3 with specific partition columns
-            pbar.set_description(f'Saving Extraction {extract_num+1} of {num_iters}: {start} to {stop}', refresh=True)
-            wr.s3.to_parquet(
-                df=track_points,
-                path=output_path,
-                dataset=True,
-                partition_cols=["year", "month", "day", "hour"],
-                compression="snappy"  # Optional compression
-            )
-
-            # Save checkpoint
-            save_checkpoint(
-                session_state=dict(
-                    output_path=output_path,
-                    flights_per_request=flights_per_request,
-                    hours_interval=hours_interval,
-                    start_datetime=start_datetime,
-                    end_datetime=end_datetime,
-                    current_datetime=current_datetime,
-                    extract_num=extract_num,
-                    num_iters=num_iters,
+                # Make request for flight track points for each unique flight id in the filtered flight profiles results and obtain results
+                # NOTE: By default, date_delta splits requests by hour
+                track_points = trino.history(
                     start=start,
                     stop=stop,
-                ),
-                path=os.path.join(DEFAULT_CHECKPOINT_DIR, SESSION_ID, 'track_points_session_state.json')
-            )
+                    icao24=list(set(filtered_profiles['icao24'].unique().tolist()))
+                )
+
+                # Create partition columns for year, month, day, hour
+                track_points['year'] = track_points['time'].dt.year
+                track_points['month'] = track_points['time'].dt.month
+                track_points['day'] = track_points['time'].dt.day
+                track_points['hour'] = track_points['time'].dt.hour
+
+                # Save to s3 with specific partition columns
+                pbar.set_description(f'Saving Extraction {extract_num+1} of {num_iters}: {start} to {stop}', refresh=True)
+                wr.s3.to_parquet(
+                    df=track_points,
+                    path=output_path,
+                    dataset=True,
+                    partition_cols=["year", "month", "day", "hour"],
+                    compression="snappy"  # Optional compression
+                )
+
+                # Save checkpoint
+                save_checkpoint(
+                    session_state=dict(
+                        output_path=output_path,
+                        flights_per_request=flights_per_request,
+                        hours_interval=hours_interval,
+                        start_datetime=start_datetime,
+                        end_datetime=end_datetime,
+                        current_datetime=current_datetime,
+                        extract_num=extract_num,
+                        num_iters=num_iters,
+                        start=start,
+                        stop=stop,
+                    ),
+                    path=os.path.join(DEFAULT_CHECKPOINT_DIR, SESSION_ID, 'track_points_session_state.json')
+                )
 
             extract_num += 1
             current_datetime = start
