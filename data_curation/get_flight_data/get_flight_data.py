@@ -1,10 +1,8 @@
 __author__ = 'Brett Allen (brettallen777@gmail.com)'
 
-from pyopensky.config import opensky_config_dir
 from pyopensky.trino import Trino
 import pandas as pd
 import awswrangler as wr
-from glob import glob
 import os
 import datetime
 from tqdm import tqdm
@@ -39,8 +37,17 @@ def load_checkpoint(path: str) -> dict:
             session_state = json.load(f)
     return session_state
 
-def get_track_points(trino: Trino, airports: set, **kwargs):
-    # TODO Implement approach for loading previous session state
+def get_track_points(trino: Trino, airports: set, args: argparse.Namespace, **kwargs):
+    # Load session state if desired
+    checkpoint_path = os.path.join(DEFAULT_CHECKPOINT_DIR, SESSION_ID if not args.session_id else args.session_id, 'track_points_session_state.json')
+    session_state = {}
+    if args.session_id:
+        print(f'Loading previous session from checkpoint: "{checkpoint_path}"')
+        session_state = load_checkpoint(checkpoint_path)
+
+        # Override kwargs
+        kwargs = { **kwargs, **session_state }
+
     output_path = kwargs['output_path']
     if not output_path.strip().lower().endswith('track-points'):
         output_path = os.path.join(output_path, 'track-points')
@@ -48,19 +55,41 @@ def get_track_points(trino: Trino, airports: set, **kwargs):
     flights_per_request = kwargs['flights_per_request']
     hours_interval = kwargs['hours_interval']
 
-    start_datetime = datetime.datetime.strptime(kwargs['start'], '%Y-%m-%d %H:%M:%S')
-    end_datetime = datetime.datetime.strptime(kwargs['end'], '%Y-%m-%d %H:%M:%S')
+    start_datetime = datetime.datetime.strptime(kwargs['start_datetime'], '%Y-%m-%d %H:%M:%S')
+    end_datetime = datetime.datetime.strptime(kwargs['end_datetime'], '%Y-%m-%d %H:%M:%S')
 
-    current_datetime = end_datetime # start_datetime
-    extract_num = 0
+    current_datetime = kwargs.get('current_datetime', end_datetime)
+    if isinstance(current_datetime, str):
+        current_datetime = datetime.datetime.strptime(current_datetime, '%Y-%m-%d %H:%M:%S')
+
+    extract_num = kwargs.get('extract_num', 0)
     date_diff = end_datetime - start_datetime
     days, seconds = date_diff.days, date_diff.seconds
     hours = days * 24 + seconds // 3600
     num_iters = hours // hours_interval
     if hours % hours_interval != 0:
         num_iters += 1
+    num_iters = kwargs.get('num_iters', num_iters)
+    start = kwargs.get('start')
+    stop = kwargs.get('stop')
+
+    # print(f'Session State: {session_state}')
+    # print('Initial parameters:')
+    # print(f'  output_path         = {output_path}')
+    # print(f'  flights_per_request = {flights_per_request}')
+    # print(f'  hours_interval      = {hours_interval}')
+    # print(f'  start_datetime      = {start_datetime}')
+    # print(f'  end_datetime        = {end_datetime}')
+    # print(f'  current_datetime    = {current_datetime}')
+    # print(f'  extract_num         = {extract_num}')
+    # print(f'  num_iters           = {num_iters}')
+    # print(f'  start               = {start}')
+    # print(f'  stop                = {stop}')
 
     with tqdm(total=num_iters) as pbar:
+        if extract_num != 0:
+            pbar.update(extract_num)
+
         # Work backwards so that latest data is prioritized first
         while current_datetime > start_datetime:
             start = current_datetime - datetime.timedelta(hours=hours_interval)
@@ -125,17 +154,17 @@ def get_track_points(trino: Trino, airports: set, **kwargs):
                         start=start,
                         stop=stop,
                     ),
-                    path=os.path.join(DEFAULT_CHECKPOINT_DIR, SESSION_ID, 'track_points_session_state.json')
+                    path=checkpoint_path
                 )
 
             extract_num += 1
             current_datetime = start
             pbar.update(1)
 
-def get_flight_profiles(trino: Trino, airports: set, **kwargs):
+def get_flight_profiles(trino: Trino, airports: set, args: argparse.Namespace, **kwargs):
     print('[WARNING] Function to get flight profiles not yet implemented.')
 
-def get_flight_messages(trino: Trino, airports: set, **kwargs):
+def get_flight_messages(trino: Trino, airports: set, args: argparse.Namespace, **kwargs):
     print('[WARNING] Function to get flight messages not yet implemented.')
 
 def main():
@@ -159,17 +188,17 @@ def main():
     # Get flight track points data if enbaled in configuration
     if config['track_points']:
         print('Getting track points data...')
-        get_track_points(trino, airports, **config['parameters'])
+        get_track_points(trino, airports, args, **config['parameters'])
 
     # Get flight profiles data if enbaled in configuration
     if config['flight_profiles']:
         print('Getting flight profiles data...')
-        get_flight_profiles(trino, airports, **config['parameters'])
+        get_flight_profiles(trino, airports, args, **config['parameters'])
 
     # Get flight messages data if enabled in configuration
     if config['flight_messages']:
         print('Getting flight messages data...')
-        get_flight_messages(trino, airports, **config['parameters'])
+        get_flight_messages(trino, airports, args, **config['parameters'])
 
 if __name__ == '__main__':
     main()
